@@ -2,7 +2,41 @@ import pickle
 from fastapi import FastAPI
 import uvicorn
 from typing import Dict, Any
+from pydantic import BaseModel, Field, conint,confloat
+from typing import Literal
 
+
+#request
+class Customer(BaseModel):
+
+    gender: Literal["male", "female"]
+    seniorcitizen: Literal[0, 1]
+    partner: Literal["yes", "no"]
+    dependents: Literal["yes", "no"]
+    phoneservice: Literal["yes", "no"]
+    multiplelines: Literal["no", "yes", "no_phone_service"]
+    internetservice: Literal["dsl", "fiber_optic", "no"]
+    onlinesecurity: Literal["no", "yes", "no_internet_service"]
+    onlinebackup: Literal["no", "yes", "no_internet_service"]
+    deviceprotection: Literal["no", "yes", "no_internet_service"]
+    techsupport: Literal["no", "yes", "no_internet_service"]
+    streamingtv: Literal["no", "yes", "no_internet_service"]
+    streamingmovies: Literal["no", "yes", "no_internet_service"]
+    contract: Literal["month-to-month", "one_year", "two_year"]
+    paperlessbilling: Literal["yes", "no"]
+    paymentmethod: Literal[
+        "electronic_check",
+        "mailed_check",
+        "bank_transfer_(automatic)",
+        "credit_card_(automatic)",
+    ]
+    tenure: int = Field(..., ge=0)
+    monthlycharges: float = Field(..., ge=0.0)
+    totalcharges: float = Field(..., ge=0.0)
+
+class PredictResponse(BaseModel):
+    churn_probability: float
+    churn: bool
 
 app = FastAPI(title="churn-prediction")
 
@@ -16,13 +50,17 @@ def predict_single(customer):
     return float(result)
 
 @app.post("/predict")
-def predict(customer: Dict[str, Any]):
-    churn = predict_single(customer)
+def predict(customer: Customer) ->PredictResponse:
+    churn = predict_single(customer.model_dump()) # before customer is dictionary, but now customer is a 
+                                                  #customer class, we need .model_dump() to convert it to a dict
+                                                  # we dont need to define input customer data as Customer class
+                                                  # because here Fast API will convert it for us.
+    return PredictResponse(
+        churn_probability=churn,
+        churn=churn >= 0.5
+    )
 
-    return {
-        "churn_probability": churn,
-        "churn": bool(churn >= 0.5)
-    }
+
 
 
 if __name__ == "__main__":
